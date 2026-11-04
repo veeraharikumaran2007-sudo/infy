@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #ffffff;
+    --border-color: #ffe4e6;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --primary-red: #e11d48;
+    --primary-pink: #ec4899;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #1f2937;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    user-select: none;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom scrollbars with pink/red tint */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: #f43f5e;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e11d48;
+}
+::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+/* Story gradient in red & pink */
+.story-ring-red-pink {
+  background: linear-gradient(135deg, #e11d48 0%, #ec4899 50%, #f43f5e 100%);
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 6s linear infinite;
+}
