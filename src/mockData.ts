@@ -168,16 +168,20 @@ export const INITIAL_REELS: Reel[] = [
 
 export const INITIAL_CHATS: ChatThread[] = [
   {
-    id: 'ch_2',
+    id: 'ch_welcome',
     companyId: 'c1',
-    user: INITIAL_USERS[0], // Mr. D. Yogeshwaran
-    lastMessage: 'Great progress on the Company Connect platform Mohan!',
-    timestamp: '15m',
-    unread: true,
+    user: INITIAL_USERS[0], // Mr. D. Yogeshwaran (Founder & CEO)
+    lastMessage: 'Welcome to Infynux Solutions Company Connect!',
+    timestamp: 'Just now',
+    unread: false,
     messages: [
-      { id: 'm4', senderId: 'u_admin_infynux', text: 'Mohan, let’s showcase Company Connect during the townhall!', timestamp: '9:00 AM', isMine: false },
-      { id: 'm5', senderId: 'u_emp_mohan', text: 'Yes Yogeshwaran sir! All features are ready and 100% functional.', timestamp: '9:05 AM', isMine: true },
-      { id: 'm6', senderId: 'u_admin_infynux', text: 'Great progress on the Company Connect platform Mohan!', timestamp: '9:10 AM', isMine: false },
+      { 
+        id: 'm_welcome', 
+        senderId: 'u_admin_infynux', 
+        text: 'Welcome to Infynux Solutions Company Connect platform! Use this channel to coordinate directly with leadership and colleagues. 🚀', 
+        timestamp: 'Just now', 
+        isMine: false 
+      },
     ],
   },
 ];

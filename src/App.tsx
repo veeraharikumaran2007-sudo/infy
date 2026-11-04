@@ -34,7 +34,11 @@ import { supabase } from './supabase';
 
 export const App: React.FC = () => {
   const [isDark, setIsDark] = useState<boolean>(false); // White Theme Default!
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false); // Shows Login Page first!
+  
+  // Persistent Session in localStorage so refresh never logs you out!
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('company_connect_auth') === 'true';
+  });
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('All');
 
@@ -42,9 +46,17 @@ export const App: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>(INITIAL_COMPANIES);
   const [currentCompany, setCurrentCompany] = useState<Company>(INITIAL_COMPANIES[0]); // Infynux Solutions
 
-  // Users & Current Authenticated User
+  // Users & Current Authenticated User (Persistent from localStorage)
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
-  const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]); // Rajesh Kumar (Admin)
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const saved = localStorage.getItem('company_connect_user');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return INITIAL_USERS[0];
+  });
 
   // Posts, Stories, Announcements, Reels
   const [posts, setPosts] = useState<Post[]>(INITIAL_POSTS);
@@ -56,6 +68,7 @@ export const App: React.FC = () => {
   // Modals state
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [detailPost, setDetailPost] = useState<Post | null>(null);
+  const [viewingUser, setViewingUser] = useState<User | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -110,11 +123,14 @@ export const App: React.FC = () => {
           }));
           setUsers(mappedUsers);
 
-          const defaultAdmin = mappedUsers.find(
-            (u) => u.role === 'admin' && u.companyId === 'c1'
-          );
-          if (defaultAdmin) {
-            setCurrentUser((prev) => (prev.id === defaultAdmin.id ? prev : defaultAdmin));
+          // Update currentUser from Supabase WITHOUT forcing admin override!
+          const savedUserId = localStorage.getItem('company_connect_user_id');
+          if (savedUserId) {
+            const matched = mappedUsers.find((u) => u.id === savedUserId);
+            if (matched) {
+              setCurrentUser(matched);
+              localStorage.setItem('company_connect_user', JSON.stringify(matched));
+            }
           }
         }
 
@@ -132,6 +148,39 @@ export const App: React.FC = () => {
             type: a.type,
           }));
           setAnnouncements(mappedAnn);
+        }
+
+        // 3.5. Fetch Real Post Comments from Supabase
+        const { data: commentsData } = await supabase
+          .from('post_comments')
+          .select('*, employees(*)')
+          .order('created_at', { ascending: true });
+
+        const postCommentsMap: Record<string, any[]> = {};
+        if (commentsData && commentsData.length > 0) {
+          commentsData.forEach((cm: any) => {
+            if (!postCommentsMap[cm.post_id]) postCommentsMap[cm.post_id] = [];
+            postCommentsMap[cm.post_id].push({
+              id: cm.id,
+              user: cm.employees ? {
+                username: cm.employees.username,
+                fullName: cm.employees.full_name,
+                avatar: cm.employees.avatar || '/admin-yogeshwaran-avatar.png',
+                department: cm.employees.department,
+                isVerified: cm.employees.is_verified,
+              } : {
+                username: 'colleague',
+                fullName: 'Colleague',
+                avatar: '/admin-yogeshwaran-avatar.png',
+                department: 'Engineering',
+                isVerified: true,
+              },
+              text: cm.text,
+              timestamp: 'Recent',
+              likesCount: 0,
+              isLiked: false,
+            });
+          });
         }
 
         // 4. Fetch Posts
@@ -168,7 +217,7 @@ export const App: React.FC = () => {
             isSaved: false,
             location: p.location || 'Company Workspace',
             timestamp: 'Recent',
-            comments: [],
+            comments: postCommentsMap[p.id] || [],
           }));
           setPosts(mappedPosts);
         }
@@ -488,11 +537,17 @@ export const App: React.FC = () => {
     setCurrentCompany(company);
     setCurrentUser(user);
     setIsAuthenticated(true);
+    localStorage.setItem('company_connect_auth', 'true');
+    localStorage.setItem('company_connect_user_id', user.id);
+    localStorage.setItem('company_connect_user', JSON.stringify(user));
     setActiveTab('home');
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    localStorage.removeItem('company_connect_auth');
+    localStorage.removeItem('company_connect_user_id');
+    localStorage.removeItem('company_connect_user');
   };
 
   const handleUpdateUser = (updated: Partial<User>) => {
@@ -501,6 +556,7 @@ export const App: React.FC = () => {
       setUsers((prevUsers) =>
         prevUsers.map((u) => (u.id === prev.id ? updatedUser : u))
       );
+      localStorage.setItem('company_connect_user', JSON.stringify(updatedUser));
       try {
         supabase.from('employees').update({
           full_name: updatedUser.fullName,
@@ -534,32 +590,42 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white text-neutral-800 flex flex-col md:flex-row transition-colors duration-200">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-white text-neutral-800 flex flex-col md:flex-row transition-colors duration-200">
       {/* Desktop Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
-        setActiveTab={handleTabChange}
+        setActiveTab={(tab) => {
+          if (tab === 'profile') setViewingUser(null);
+          handleTabChange(tab);
+        }}
         openCreateModal={() => setIsCreateOpen(true)}
         openWorkspaceModal={() => setIsWorkspaceModalOpen(true)}
         currentUser={currentUser}
         currentCompany={currentCompany}
         isDark={isDark}
         setIsDark={setIsDark}
-        unreadMessagesCount={1}
-        unreadNotificationsCount={2}
+        unreadMessagesCount={0}
+        unreadNotificationsCount={announcements.length}
         allUsers={users}
-        onSwitchUser={(u) => setCurrentUser(u)}
+        onSwitchUser={(u) => {
+          setCurrentUser(u);
+          localStorage.setItem('company_connect_user', JSON.stringify(u));
+          localStorage.setItem('company_connect_user_id', u.id);
+        }}
         onLogout={handleLogout}
       />
 
       {/* Mobile Header & Bottom Navigation */}
       <MobileNav
         activeTab={activeTab}
-        setActiveTab={handleTabChange}
+        setActiveTab={(tab) => {
+          if (tab === 'profile') setViewingUser(null);
+          handleTabChange(tab);
+        }}
         openCreateModal={() => setIsCreateOpen(true)}
         currentUser={currentUser}
-        unreadMessagesCount={1}
-        unreadNotificationsCount={2}
+        unreadMessagesCount={0}
+        unreadNotificationsCount={announcements.length}
       />
 
       {/* Search & Notifications Drawers */}
@@ -568,7 +634,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSearchOpen(false)}
         users={companyEmployees}
         onSelectUser={(u) => {
-          setCurrentUser(u);
+          setViewingUser(u);
           setActiveTab('profile');
           setIsSearchOpen(false);
         }}
@@ -577,6 +643,9 @@ export const App: React.FC = () => {
       <NotificationsDrawer
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
+        announcements={companyAnnouncements}
+        posts={companyPosts}
+        users={companyEmployees}
       />
 
       {/* Workspace Switcher Modal */}
@@ -590,7 +659,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Viewport Content */}
-      <main className="flex-1 min-w-0 md:ml-18 xl:ml-64 pt-16 md:pt-4 pb-16 md:pb-6 px-2 sm:px-4 flex justify-center">
+      <main className="flex-1 w-full max-w-full min-w-0 md:ml-18 xl:ml-64 pt-16 md:pt-4 pb-16 md:pb-6 px-1.5 sm:px-4 flex flex-col items-center overflow-x-hidden">
         {/* VIEW 1: COMPANY FEED */}
         {activeTab === 'home' && (
           <div className="w-full max-w-[975px] flex justify-center mx-auto">
@@ -688,7 +757,7 @@ export const App: React.FC = () => {
             currentCompany={currentCompany}
             employees={companyEmployees}
             onSelectEmployee={(emp) => {
-              setCurrentUser(emp);
+              setViewingUser(emp);
               setActiveTab('profile');
             }}
           />
@@ -703,12 +772,19 @@ export const App: React.FC = () => {
         {activeTab === 'reels' && <ReelsViewer />}
 
         {/* VIEW 6: DIRECT COMMS / MESSAGES */}
-        {activeTab === 'messages' && <DirectMessages currentUser={currentUser} chats={chats} />}
+        {activeTab === 'messages' && (
+          <DirectMessages 
+            currentUser={currentUser} 
+            chats={chats} 
+            colleagues={companyEmployees} 
+          />
+        )}
 
         {/* VIEW 7: EMPLOYEE PROFILE */}
         {activeTab === 'profile' && (
           <ProfileView
             currentUser={currentUser}
+            viewingUser={viewingUser}
             userPosts={myPosts.length > 0 ? myPosts : companyPosts}
             savedPosts={savedPosts}
             onSelectPost={(p) => setDetailPost(p)}

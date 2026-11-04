@@ -15,6 +15,7 @@ import { User, Post } from '../types';
 
 interface ProfileViewProps {
   currentUser: User;
+  viewingUser?: User | null;
   userPosts: Post[];
   savedPosts: Post[];
   onSelectPost: (post: Post) => void;
@@ -24,32 +25,37 @@ interface ProfileViewProps {
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
   currentUser,
+  viewingUser,
   userPosts,
   savedPosts,
   onSelectPost,
   openCreateModal,
   onUpdateUser,
 }) => {
+  const targetUser = viewingUser || currentUser;
+  const isSelf = targetUser.id === currentUser.id;
+
   const [activeSubTab, setActiveSubTab] = useState<'posts' | 'reels' | 'saved'>('posts');
   const [isEditingBio, setIsEditingBio] = useState(false);
-  const [nameText, setNameText] = useState(currentUser.fullName);
-  const [usernameText, setUsernameText] = useState(currentUser.username);
-  const [designationText, setDesignationText] = useState(currentUser.designation);
-  const [bioText, setBioText] = useState(currentUser.bio);
-  const [avatarUrl, setAvatarUrl] = useState(currentUser.avatar);
+  const [nameText, setNameText] = useState(targetUser.fullName);
+  const [usernameText, setUsernameText] = useState(targetUser.username);
+  const [designationText, setDesignationText] = useState(targetUser.designation);
+  const [bioText, setBioText] = useState(targetUser.bio);
+  const [avatarUrl, setAvatarUrl] = useState(targetUser.avatar);
   const [imgError, setImgError] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync state whenever currentUser changes
+  // Sync state whenever targetUser changes
   useEffect(() => {
-    setNameText(currentUser.fullName);
-    setUsernameText(currentUser.username);
-    setDesignationText(currentUser.designation);
-    setBioText(currentUser.bio);
-    setAvatarUrl(currentUser.avatar);
+    setNameText(targetUser.fullName);
+    setUsernameText(targetUser.username);
+    setDesignationText(targetUser.designation);
+    setBioText(targetUser.bio);
+    setAvatarUrl(targetUser.avatar);
     setImgError(false);
-  }, [currentUser]);
+    setIsEditingBio(false);
+  }, [targetUser]);
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,7 +65,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         const result = reader.result as string;
         setAvatarUrl(result);
         setImgError(false);
-        currentUser.avatar = result;
         if (onUpdateUser) {
           onUpdateUser({ avatar: result });
         }
@@ -69,18 +74,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   };
 
   const handleSaveProfile = () => {
-    currentUser.fullName = nameText;
-    currentUser.username = usernameText;
-    currentUser.designation = designationText;
-    currentUser.bio = bioText;
-    currentUser.avatar = avatarUrl;
-    
     if (onUpdateUser) {
       onUpdateUser({
-        fullName: nameText,
-        username: usernameText,
-        designation: designationText,
-        bio: bioText,
+        fullName: nameText.trim(),
+        username: usernameText.trim(),
+        designation: designationText.trim(),
+        bio: bioText.trim(),
         avatar: avatarUrl,
       });
     }
@@ -112,22 +111,24 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             {!imgError ? (
               <img
                 src={avatarUrl}
-                alt={currentUser.fullName}
+                alt={targetUser.fullName}
                 onError={() => setImgError(true)}
                 className="w-full h-full rounded-full object-cover group-hover:scale-105 transition duration-300"
               />
             ) : (
               <div className="w-full h-full rounded-full bg-gradient-to-tr from-red-600 to-pink-500 flex items-center justify-center text-white text-3xl font-bold font-serif">
-                {currentUser.fullName.charAt(0)}
+                {targetUser.fullName.charAt(0)}
               </div>
             )}
           </div>
 
-          {/* Camera Hover Overlay */}
-          <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold">
-            <Camera size={22} className="mb-0.5" />
-            <span>Change Photo</span>
-          </div>
+          {/* Camera Hover Overlay (Only on own profile) */}
+          {isSelf && (
+            <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold">
+              <Camera size={22} className="mb-0.5" />
+              <span>Change Photo</span>
+            </div>
+          )}
         </div>
 
         {/* User Info & Controls */}
@@ -148,42 +149,50 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 style={{ fontFamily: '"Times New Roman", Times, serif' }}
               >
                 {nameText}
-                {currentUser.role === 'admin' ? (
+                {targetUser.role === 'admin' ? (
                   <span className="text-[10px] bg-gradient-to-r from-red-600 to-pink-600 text-white font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
                     <ShieldCheck size={12} /> Company Admin
                   </span>
                 ) : (
                   <span className="text-[10px] bg-rose-50 text-rose-600 font-bold px-2.5 py-0.5 rounded-full border border-rose-200">
-                    {currentUser.department}
+                    {targetUser.department}
                   </span>
                 )}
               </h1>
             )}
 
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={isEditingBio ? handleSaveProfile : () => setIsEditingBio(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition border border-rose-200 flex items-center gap-1"
-              >
-                {isEditingBio ? <Check size={14} /> : null}
-                {isEditingBio ? 'Save Profile' : 'Edit Profile'}
-              </button>
+            {isSelf ? (
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={isEditingBio ? handleSaveProfile : () => setIsEditingBio(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition border border-rose-200 flex items-center gap-1"
+                >
+                  {isEditingBio ? <Check size={14} /> : null}
+                  {isEditingBio ? 'Save Profile' : 'Edit Profile'}
+                </button>
 
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition border border-rose-200 flex items-center gap-1"
-              >
-                <Camera size={14} /> Upload Photo
-              </button>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold transition border border-rose-200 flex items-center gap-1"
+                >
+                  <Camera size={14} /> Upload Photo
+                </button>
 
-              <button 
-                onClick={openCreateModal}
-                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1"
-                style={{ fontFamily: '"Times New Roman", Times, serif' }}
-              >
-                <Plus size={14} /> New Update
-              </button>
-            </div>
+                <button 
+                  onClick={openCreateModal}
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1"
+                  style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                >
+                  <Plus size={14} /> New Update
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-xl bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-200">
+                  Colleague Profile
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Subtitle: username and designation */}

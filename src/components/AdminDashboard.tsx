@@ -225,7 +225,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   });
 
   return (
-    <div className="max-w-5xl mx-auto py-3 sm:py-6 px-2 sm:px-4 md:px-8 space-y-4 sm:space-y-6 bg-white min-h-[85vh]">
+    <div className="w-full max-w-5xl mx-auto py-3 sm:py-6 px-1.5 sm:px-4 md:px-8 space-y-4 sm:space-y-6 bg-white min-h-[85vh] overflow-x-hidden">
       {/* Hidden file input for adding employee avatar */}
       <input
         type="file"
