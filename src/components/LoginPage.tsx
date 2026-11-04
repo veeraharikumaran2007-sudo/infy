@@ -54,7 +54,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const activeCompany = companies.find((c) => c.id === selectedCompanyId) || companies[0];
   const companyEmployees = users.filter((u) => u.companyId === activeCompany.id);
 
-  const handleLoginFormSubmit = (e: React.FormEvent) => {
+  const handleLoginFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailOrUsername.trim() || !password.trim()) {
       setErrorMessage('Please enter your email and password');
@@ -64,50 +64,75 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsLoading(true);
     setErrorMessage('');
 
-    setTimeout(() => {
-      const rawInput = emailOrUsername.trim().toLowerCase();
-      const pwdInput = password.trim();
+    const rawInput = emailOrUsername.trim().toLowerCase();
+    const pwdInput = password.trim();
 
-      // 1. MASTER ADMIN AUTHENTICATION (veeraharikumaran2007@gmail.com / hari@5213)
-      if (
-        (rawInput === 'veeraharikumaran2007@gmail.com' || rawInput === 'veeraharikumaran') &&
-        pwdInput === 'hari@5213'
-      ) {
-        const adminUser = companyEmployees.find((u) => u.role === 'admin') || users[0];
-        setLoginSuccess(true);
-        setTimeout(() => {
-          setIsLoading(false);
-          onLogin(adminUser, activeCompany);
-        }, 500);
+    // 1. MASTER ADMIN AUTHENTICATION (veeraharikumaran2007@gmail.com / hari@5213)
+    if (
+      (rawInput === 'veeraharikumaran2007@gmail.com' || rawInput === 'veeraharikumaran') &&
+      pwdInput === 'hari@5213'
+    ) {
+      const adminUser = companyEmployees.find((u) => u.role === 'admin') || users[0];
+      setLoginSuccess(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        onLogin(adminUser, activeCompany);
+      }, 400);
+      return;
+    }
+
+    // 2. LIVE QUERY DIRECTLY TO SUPABASE (Sync across laptop & all mobiles)
+    let liveEmployees: User[] = companyEmployees;
+    try {
+      const { data: dbData } = await supabase.from('employees').select('*');
+      if (dbData && dbData.length > 0) {
+        liveEmployees = dbData.map((e: any) => ({
+          id: e.id,
+          companyId: e.company_id || 'c1',
+          username: e.username,
+          fullName: e.full_name,
+          email: e.email,
+          password: e.password,
+          avatar: e.avatar || '/admin-yogeshwaran-avatar.png',
+          role: e.role || 'employee',
+          department: e.department || 'Engineering',
+          designation: e.designation || 'Specialist',
+          isVerified: e.is_verified ?? true,
+          followersCount: e.followers_count || 0,
+          followingCount: e.following_count || 0,
+          bio: e.bio || '',
+          achievements: e.achievements || [],
+        }));
+      }
+    } catch (e) {
+      console.warn('Supabase live auth fetch notice:', e);
+    }
+
+    // 3. REGISTERED EMPLOYEE AUTHENTICATION
+    const foundEmployee = liveEmployees.find((u) => {
+      const emailMatch = u.email && u.email.toLowerCase() === rawInput;
+      const usernameMatch = u.username.toLowerCase() === rawInput || `@${u.username.toLowerCase()}` === rawInput;
+      return emailMatch || usernameMatch;
+    });
+
+    if (foundEmployee) {
+      if (foundEmployee.password && foundEmployee.password !== pwdInput && pwdInput !== 'password123') {
+        setIsLoading(false);
+        setErrorMessage('Incorrect password. Please verify your credentials or register a new employee account.');
         return;
       }
 
-      // 2. REGISTERED EMPLOYEE AUTHENTICATION
-      const foundEmployee = companyEmployees.find((u) => {
-        const emailMatch = u.email && u.email.toLowerCase() === rawInput;
-        const usernameMatch = u.username.toLowerCase() === rawInput || `@${u.username.toLowerCase()}` === rawInput;
-        return emailMatch || usernameMatch;
-      });
+      setLoginSuccess(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        onLogin(foundEmployee, activeCompany);
+      }, 400);
+      return;
+    }
 
-      if (foundEmployee) {
-        if (foundEmployee.password && foundEmployee.password !== pwdInput && pwdInput !== 'password123') {
-          setIsLoading(false);
-          setErrorMessage('Incorrect password. Please verify your credentials or register a new employee account.');
-          return;
-        }
-
-        setLoginSuccess(true);
-        setTimeout(() => {
-          setIsLoading(false);
-          onLogin(foundEmployee, activeCompany);
-        }, 500);
-        return;
-      }
-
-      // 3. UNAUTHORIZED CREDENTIALS
-      setIsLoading(false);
-      setErrorMessage('Account not found. Please click "Register as Employee" below to create your account!');
-    }, 500);
+    // 4. UNAUTHORIZED CREDENTIALS
+    setIsLoading(false);
+    setErrorMessage('Account not found in cloud database. Please click "Employee Register" tab to create your account!');
   };
 
   const handleRegisterFormSubmit = async (e: React.FormEvent) => {

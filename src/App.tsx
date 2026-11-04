@@ -96,6 +96,8 @@ export const App: React.FC = () => {
             companyId: e.company_id,
             username: e.username,
             fullName: e.full_name,
+            email: e.email,
+            password: e.password,
             avatar: e.avatar || '/admin-yogeshwaran-avatar.png',
             role: e.role,
             department: e.department,
@@ -112,7 +114,7 @@ export const App: React.FC = () => {
             (u) => u.role === 'admin' && u.companyId === 'c1'
           );
           if (defaultAdmin) {
-            setCurrentUser(defaultAdmin);
+            setCurrentUser((prev) => (prev.id === defaultAdmin.id ? prev : defaultAdmin));
           }
         }
 
@@ -176,6 +178,8 @@ export const App: React.FC = () => {
     };
 
     fetchSupabaseData();
+    const syncInterval = setInterval(fetchSupabaseData, 2500);
+    return () => clearInterval(syncInterval);
   }, []);
 
   // Strict Multi-Tenant Data Separation by Active Company
