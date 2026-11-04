@@ -391,7 +391,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
                   <p className="text-[11px] text-emerald-700 mt-2">
-                    ✉️ Auto-DM containing this login PIN was dispatched from <strong>veeraharikumaran2007@gmail.com</strong>!
+                    ✉️ Auto-DM containing this login PIN was dispatched from <strong>Workspace Administrator</strong>!
                   </p>
                 </div>
               </div>

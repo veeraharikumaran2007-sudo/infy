@@ -306,9 +306,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="name@company.com or username"
+                  placeholder="Enter email or username"
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
+                  autoComplete="off"
                   className="w-full bg-rose-50/30 border border-rose-200/70 rounded-xl px-3.5 py-2.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-rose-400"
                   required
                 />
@@ -322,9 +323,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </label>
                 <input
                   type="password"
-                  placeholder="Enter password or 6-digit PIN"
+                  placeholder="Enter password or PIN"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
                   className="w-full bg-rose-50/30 border border-rose-200/70 rounded-xl px-3.5 py-2.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-rose-400"
                   required
                 />
@@ -399,9 +401,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 </label>
                 <input
                   type="email"
-                  placeholder="karthik@company.com"
+                  placeholder="Enter your corporate email"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
+                  autoComplete="off"
                   className="w-full bg-rose-50/30 border border-rose-200/70 rounded-xl px-3 py-2 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-rose-400"
                   required
                 />

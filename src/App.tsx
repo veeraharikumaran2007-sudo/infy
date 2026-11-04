@@ -102,25 +102,27 @@ export const App: React.FC = () => {
         }
 
         // 2. Fetch Employees
+        let currentLoadedUsers: User[] = users;
         const { data: empData } = await supabase.from('employees').select('*');
         if (empData && empData.length > 0) {
           const mappedUsers: User[] = empData.map((e: any) => ({
             id: e.id,
-            companyId: e.company_id,
+            companyId: e.company_id || 'c1',
             username: e.username,
             fullName: e.full_name,
             email: e.email,
             password: e.password,
             avatar: e.avatar || '/admin-yogeshwaran-avatar.png',
-            role: e.role,
-            department: e.department,
-            designation: e.designation,
-            isVerified: e.is_verified,
+            role: e.role || 'employee',
+            department: e.department || 'Engineering',
+            designation: e.designation || 'Specialist',
+            isVerified: e.is_verified ?? true,
             followersCount: e.followers_count || 0,
             followingCount: e.following_count || 0,
             bio: e.bio || '',
             achievements: e.achievements || [],
           }));
+          currentLoadedUsers = mappedUsers;
           setUsers(mappedUsers);
 
           // Update currentUser from Supabase WITHOUT forcing admin override!
@@ -190,35 +192,39 @@ export const App: React.FC = () => {
           .order('created_at', { ascending: false });
 
         if (postData && postData.length > 0) {
-          const mappedPosts: Post[] = postData.map((p: any) => ({
-            id: p.id,
-            companyId: p.company_id,
-            user: p.employees ? {
+          const mappedPosts: Post[] = postData.map((p: any) => {
+            const author = p.employees ? {
               id: p.employees.id,
-              companyId: p.employees.company_id,
+              companyId: p.employees.company_id || 'c1',
               username: p.employees.username,
               fullName: p.employees.full_name,
               avatar: p.employees.avatar || '/admin-yogeshwaran-avatar.png',
-              role: p.employees.role,
-              department: p.employees.department,
-              designation: p.employees.designation,
-              isVerified: p.employees.is_verified,
-              followersCount: p.employees.followers_count,
-              followingCount: p.employees.following_count,
-              bio: p.employees.bio,
-            } : INITIAL_USERS[0],
-            media: p.media && p.media.length > 0 ? p.media : ['https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'],
-            caption: p.caption,
-            department: p.department,
-            badge: p.badge,
-            isOfficialAnnouncement: p.is_official_announcement,
-            likesCount: p.likes_count || 0,
-            isLiked: false,
-            isSaved: false,
-            location: p.location || 'Company Workspace',
-            timestamp: 'Recent',
-            comments: postCommentsMap[p.id] || [],
-          }));
+              role: p.employees.role || 'employee',
+              department: p.employees.department || 'Engineering',
+              designation: p.employees.designation || 'Specialist',
+              isVerified: p.employees.is_verified ?? true,
+              followersCount: p.employees.followers_count || 0,
+              followingCount: p.employees.following_count || 0,
+              bio: p.employees.bio || '',
+            } : (currentLoadedUsers.find((u) => u.id === p.user_id) || INITIAL_USERS[0]);
+
+            return {
+              id: p.id,
+              companyId: p.company_id || 'c1',
+              user: author,
+              media: p.media && p.media.length > 0 ? p.media : ['https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'],
+              caption: p.caption,
+              department: p.department || 'Engineering',
+              badge: p.badge || 'Daily Standup',
+              isOfficialAnnouncement: p.is_official_announcement || false,
+              likesCount: p.likes_count || 0,
+              isLiked: false,
+              isSaved: false,
+              location: p.location || 'Company Workspace',
+              timestamp: 'Recent',
+              comments: postCommentsMap[p.id] || [],
+            };
+          });
           setPosts(mappedPosts);
         }
       } catch (err) {
@@ -227,12 +233,12 @@ export const App: React.FC = () => {
     };
 
     fetchSupabaseData();
-    const syncInterval = setInterval(fetchSupabaseData, 2500);
+    const syncInterval = setInterval(fetchSupabaseData, 2000);
     return () => clearInterval(syncInterval);
   }, []);
 
   // Strict Multi-Tenant Data Separation by Active Company
-  const companyPosts = posts.filter((p) => p.companyId === currentCompany.id);
+  const companyPosts = posts.filter((p) => p.companyId === currentCompany.id || p.companyId === 'c1' || !p.companyId);
   const filteredPosts = companyPosts.filter((p) => 
     selectedDepartment === 'All' ? true : p.department === selectedDepartment
   );
@@ -350,7 +356,11 @@ export const App: React.FC = () => {
 
   // Publish new Post
   const handlePublishPost = async (newPost: Post) => {
-    setPosts((prev) => [newPost, ...prev]);
+    const postWithCompany: Post = {
+      ...newPost,
+      companyId: newPost.companyId || currentCompany.id || 'c1',
+    };
+    setPosts((prev) => [postWithCompany, ...prev]);
     setActiveTab('home');
 
     try {
@@ -365,16 +375,16 @@ export const App: React.FC = () => {
 
     try {
       await supabase.from('posts').insert({
-        id: newPost.id,
-        company_id: newPost.companyId,
-        user_id: newPost.user.id,
-        caption: newPost.caption,
-        media: newPost.media,
-        department: newPost.department,
-        badge: newPost.badge,
-        is_official_announcement: newPost.isOfficialAnnouncement || false,
-        likes_count: newPost.likesCount,
-        location: newPost.location,
+        id: postWithCompany.id,
+        company_id: postWithCompany.companyId,
+        user_id: postWithCompany.user.id,
+        caption: postWithCompany.caption,
+        media: postWithCompany.media,
+        department: postWithCompany.department,
+        badge: postWithCompany.badge,
+        is_official_announcement: postWithCompany.isOfficialAnnouncement || false,
+        likes_count: postWithCompany.likesCount || 0,
+        location: postWithCompany.location,
       });
     } catch (e) {
       console.warn('Supabase post insert notice:', e);
@@ -398,11 +408,11 @@ export const App: React.FC = () => {
   const handleAddEmployee = async (newEmp: User) => {
     setUsers((prev) => [...prev, newEmp]);
 
-    // Send auto-DM from veeraharikumaran2007@gmail.com (Admin) to the new employee
+    // Send auto-DM from Admin to the new employee
     const autoWelcomeMessage: Message = {
       id: 'dm_auto_' + Date.now(),
       senderId: 'u_admin_infynux',
-      text: `Hello ${newEmp.fullName}! 👋 Welcome to ${currentCompany.name} Company Connect! 🎉\n\nYour employee workspace credentials have been provisioned by the admin (veeraharikumaran2007@gmail.com).\n• Username: @${newEmp.username}\n• Registered Email: ${newEmp.email}\n• Department: ${newEmp.department} (${newEmp.designation})\n\nYou can now share daily work updates, collaborate with teammates, and follow leadership broadcasts! Let's build greatness together! 🚀`,
+      text: `Hello ${newEmp.fullName}! 👋 Welcome to ${currentCompany.name} Company Connect! 🎉\n\nYour employee workspace credentials have been provisioned by the Workspace Administrator.\n• Username: @${newEmp.username}\n• Registered Email: ${newEmp.email}\n• Department: ${newEmp.department} (${newEmp.designation})\n\nYou can now share daily work updates, collaborate with teammates, and follow leadership broadcasts! Let's build greatness together! 🚀`,
       timestamp: 'Just now',
       isMine: false,
     };
@@ -659,7 +669,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Viewport Content */}
-      <main className="flex-1 w-full max-w-full min-w-0 md:ml-18 xl:ml-64 pt-16 md:pt-4 pb-16 md:pb-6 px-1.5 sm:px-4 flex flex-col items-center overflow-x-hidden">
+      <main className="flex-1 w-full max-w-full min-w-0 md:ml-18 xl:ml-64 pt-16 md:pt-4 pb-16 md:pb-6 px-2 sm:px-4 flex flex-col items-stretch overflow-x-hidden">
         {/* VIEW 1: COMPANY FEED */}
         {activeTab === 'home' && (
           <div className="w-full max-w-[975px] flex justify-center mx-auto">
