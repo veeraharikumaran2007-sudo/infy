@@ -520,6 +520,10 @@ export const App: React.FC = () => {
         currentCompany={currentCompany}
         users={users}
         onLogin={handleLogin}
+        onRegisterEmployee={(newEmp, comp) => {
+          setUsers((prev) => [...prev, newEmp]);
+          handleLogin(newEmp, comp);
+        }}
         onOpenRegisterWorkspace={() => setIsWorkspaceModalOpen(true)}
       />
     );
